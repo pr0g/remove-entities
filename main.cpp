@@ -57,19 +57,28 @@ public:
         }
     }
 
-    void removeDeadEntities_copy() {
+    void removeDeadEntities_copy_for() {
         std::vector<Entity> entities;
-        entities.reserve(entities_.size());
+        entities.reserve(entities_.size()); // over allocate
         // entities.reserve(
         //     std::count_if(entities_.cbegin(), entities_.cend(),
         //         [](const Entity& entity) { return entity.alive_; }));
         for (const auto& entity : entities_) {
             if (entity.alive_) {
                 entities.push_back(entity);
-                // entities.emplace_back(entity);
             }
         }
         // entities_ = entities;
+        entities_ = std::move(entities);
+    }
+
+    void removeDeadEntities_copy_if() {
+        std::vector<Entity> entities;
+        entities.reserve(entities_.size()); // over allocate
+        std::copy_if(
+            entities_.begin(), entities_.end(),
+            std::back_inserter(entities),
+            [](const Entity& entity) { return entity.alive_; });
         entities_ = std::move(entities);
     }
 
@@ -142,7 +151,15 @@ int main(int argc, char** argv) {
     {
         World world;
         world.populate();
-        world.removeDeadEntities_copy();
+        world.removeDeadEntities_copy_for();
+        std::cout << world.entities_.size() << "\n";
+        world.depopulate();
+    }
+
+    {
+        World world;
+        world.populate();
+        world.removeDeadEntities_copy_if();
         std::cout << world.entities_.size() << "\n";
         world.depopulate();
     }
@@ -219,15 +236,25 @@ BENCHMARK_DEFINE_F(WorldFixture, EraseReverseIndex)(benchmark::State& state)
 
 BENCHMARK_REGISTER_F(WorldFixture, EraseReverseIndex)->Unit(benchmark::kMillisecond);
 
-BENCHMARK_DEFINE_F(WorldFixture, Copy)(benchmark::State& state)
+BENCHMARK_DEFINE_F(WorldFixture, CopyFor)(benchmark::State& state)
 {
     for (auto _ : state)
     {
-        world.removeDeadEntities_copy();
+        world.removeDeadEntities_copy_for();
     }
 }
 
-BENCHMARK_REGISTER_F(WorldFixture, Copy)->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(WorldFixture, CopyFor)->Unit(benchmark::kMillisecond);
+
+BENCHMARK_DEFINE_F(WorldFixture, CopyIf)(benchmark::State& state)
+{
+    for (auto _ : state)
+    {
+        world.removeDeadEntities_copy_if();
+    }
+}
+
+BENCHMARK_REGISTER_F(WorldFixture, CopyIf)->Unit(benchmark::kMillisecond);
 
 BENCHMARK_DEFINE_F(WorldFixture, Swap)(benchmark::State& state)
 {
@@ -258,4 +285,5 @@ BENCHMARK_DEFINE_F(WorldFixture, Partition)(benchmark::State& state)
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, Partition)->Unit(benchmark::kMillisecond);
+
 #endif
