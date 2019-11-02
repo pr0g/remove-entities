@@ -4,6 +4,12 @@
 
 #include "benchmark/benchmark.h"
 
+// run notes
+// output example
+//  ./build/remove-entities --benchmark_out=remove-dead-entities.json --benchmark_out_format=json
+// filter example
+//  ./build/remove-entities --benchmark_filter=WorldFixture/Swap
+
 struct Entity {
     float x_, y_, z_;
     float w_, h_;
@@ -12,11 +18,13 @@ struct Entity {
 
 class World {
 public:
+    std::vector<Entity> entities_;
+
     void populate(const int count) {
         std::mt19937 gen;
         gen.seed(1);
 
-        std::bernoulli_distribution dist;
+        std::bernoulli_distribution dist(0.5); // 50/50 alive or dead
 
         entities_.reserve(count);
         std::generate_n(
@@ -28,6 +36,10 @@ public:
                 dist(gen)
             };
         });
+    }
+
+    void depopulate() {
+        std::vector<Entity>().swap(entities_);
     }
 
     void removeDeadEntities_erase() {
@@ -59,15 +71,12 @@ public:
     void removeDeadEntities_copy_for() {
         std::vector<Entity> entities;
         entities.reserve(entities_.size()); // over allocate
-        // entities.reserve(
-        //     std::count_if(entities_.cbegin(), entities_.cend(),
-        //         [](const Entity& entity) { return entity.alive_; }));
         for (const auto& entity : entities_) {
             if (entity.alive_) {
                 entities.push_back(entity);
             }
         }
-        // entities_ = entities;
+        entities.shrink_to_fit();
         entities_ = std::move(entities);
     }
 
@@ -78,14 +87,14 @@ public:
             entities_.begin(), entities_.end(),
             std::back_inserter(entities),
             [](const Entity& entity) { return entity.alive_; });
+        entities.shrink_to_fit();
         entities_ = std::move(entities);
     }
 
     void removeDeadEntities_swap() {
         for (int i = 0; i < entities_.size();) {
             if (!entities_[i].alive_) {
-                // entities_[i] = entities_.back();
-                std::swap(entities_[i], entities_.back());
+                entities_[i] = entities_.back();
                 entities_.pop_back();
             } else {
                 i++;
@@ -108,12 +117,6 @@ public:
                 [](const Entity& e) { return e.alive_; }),
             entities_.end());
     }
-
-    void depopulate() {
-        std::vector<Entity>().swap(entities_);
-    }
-
-    std::vector<Entity> entities_;
 };
 
 #if 0
@@ -209,8 +212,8 @@ public:
 };
 
 static const int EntityCountBegin = 10000;
-static const int EntityCountEnd = 200000;
-static const int RangeMultiplier = 2;
+static const int EntityCountEnd = 250000;
+static const int EntityCountIncrement = 10000;
 
 BENCHMARK_DEFINE_F(WorldFixture, Erase)(benchmark::State& state)
 {
@@ -218,12 +221,14 @@ BENCHMARK_DEFINE_F(WorldFixture, Erase)(benchmark::State& state)
     {
         world.removeDeadEntities_erase();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, Erase)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 BENCHMARK_DEFINE_F(WorldFixture, EraseReverse)(benchmark::State& state)
 {
@@ -231,12 +236,14 @@ BENCHMARK_DEFINE_F(WorldFixture, EraseReverse)(benchmark::State& state)
     {
         world.removeDeadEntities_erase_reverse();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, EraseReverse)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 BENCHMARK_DEFINE_F(WorldFixture, EraseReverseIndex)(benchmark::State& state)
 {
@@ -244,12 +251,14 @@ BENCHMARK_DEFINE_F(WorldFixture, EraseReverseIndex)(benchmark::State& state)
     {
         world.removeDeadEntities_erase_reverse_index();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, EraseReverseIndex)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 BENCHMARK_DEFINE_F(WorldFixture, CopyFor)(benchmark::State& state)
 {
@@ -257,12 +266,14 @@ BENCHMARK_DEFINE_F(WorldFixture, CopyFor)(benchmark::State& state)
     {
         world.removeDeadEntities_copy_for();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, CopyFor)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 BENCHMARK_DEFINE_F(WorldFixture, CopyIf)(benchmark::State& state)
 {
@@ -270,12 +281,14 @@ BENCHMARK_DEFINE_F(WorldFixture, CopyIf)(benchmark::State& state)
     {
         world.removeDeadEntities_copy_if();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, CopyIf)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 BENCHMARK_DEFINE_F(WorldFixture, Swap)(benchmark::State& state)
 {
@@ -283,12 +296,14 @@ BENCHMARK_DEFINE_F(WorldFixture, Swap)(benchmark::State& state)
     {
         world.removeDeadEntities_swap();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, Swap)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 BENCHMARK_DEFINE_F(WorldFixture, Remove)(benchmark::State& state)
 {
@@ -296,12 +311,14 @@ BENCHMARK_DEFINE_F(WorldFixture, Remove)(benchmark::State& state)
     {
         world.removeDeadEntities_remove();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, Remove)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 BENCHMARK_DEFINE_F(WorldFixture, Partition)(benchmark::State& state)
 {
@@ -309,11 +326,13 @@ BENCHMARK_DEFINE_F(WorldFixture, Partition)(benchmark::State& state)
     {
         world.removeDeadEntities_partition();
     }
+
+    state.SetComplexityN(state.range(0));
 }
 
 BENCHMARK_REGISTER_F(WorldFixture, Partition)
     ->Unit(benchmark::kMillisecond)
-    ->RangeMultiplier(RangeMultiplier)
-    ->Range(EntityCountBegin, EntityCountEnd);
+    ->DenseRange(EntityCountBegin, EntityCountEnd, EntityCountIncrement)
+    ->Complexity();
 
 #endif
