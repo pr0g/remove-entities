@@ -133,7 +133,7 @@ void removeDeadEntities_erase_reverse_index() {
 
 [.code-highlight: all]
 [.code-highlight: 4-8,16-19]
-[.code-highlight: 2-3,9-10]
+[.code-highlight: 2-3,9-10,14-15,20-21]
 
 ```c++
 void removeDeadEntities_copy_for() {
