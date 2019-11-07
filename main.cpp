@@ -11,9 +11,11 @@
 //  ./build/remove-entities --benchmark_filter=WorldFixture/Swap
 
 struct Entity {
+    bool alive_;
     float x_, y_, z_;
     float w_, h_;
-    bool alive_;
+    // int8_t pad_[7];
+    // int64_t extra_pad_[2];
 };
 
 class World {
@@ -31,9 +33,9 @@ public:
             std::back_inserter(entities_),
             count, [&]{
             return Entity {
+                dist(gen),
                 0.0f, 0.0f, 0.0f,
                 1.0f, 1.0f,
-                dist(gen)
             };
         });
     }
